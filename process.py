@@ -4,6 +4,7 @@ import time
 from face_detection import FaceDetection
 from scipy import signal
 # from sklearn.decomposition import FastICA
+#from chest_detector import chest_detector # import chest detector as implented in i
 
 class Process(object):
     def __init__(self):

@@ -59,7 +59,7 @@ class FaceDetection(object):
                 # cv2.circle(frame, (x, y), 1, (0, 0, 255), -1) #draw facial landmarks
             if(face_frame.shape[:2][1] != 0):
                 face_frame = imutils.resize(face_frame,width=256)
-                
+            print(type(rects[0]))
             face_frame = self.fa.align(frame,gray,rects[0]) # align face
             
             grayf = cv2.cvtColor(face_frame, cv2.COLOR_BGR2GRAY)
