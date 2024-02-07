@@ -5,10 +5,11 @@ import scipy.signal as signal
 import scipy.fftpack as fftpack
 import time
 import sys
-from webcam_orig import Webcam
+from webcam import Webcam
 from video import Video
 from face_detection import FaceDetection
 from interface import waitKey, plotXY
+import mediapipe as mp
 
 
 class VidMag():
@@ -128,7 +129,10 @@ class VidMag():
             filter_tensor*=amplification
             filter_tensor_list.append(filter_tensor)
         recon=self.reconstract_from_tensorlist(filter_tensor_list)
+        
         final=video_tensor+recon
+        # Apply pose detection on final variable.
+        
         return final
     #-------------------------------------------------------------# 
     
@@ -137,8 +141,9 @@ class VidMag():
         tensor = np.zeros((len(buffer), 192, 256, 3), dtype = "float")
         i = 0
         for i in range(len(buffer)):
-            tensor[i] = buffer[i]
+            tensor[i] = cv2.resize(buffer[i], (256, 192))
         return tensor
+    
         
     def run_color(self):
         self.times.append(time.time() - self.t0)
@@ -163,7 +168,7 @@ class VidMag():
     def run_motion(self):
         self.times.append(time.time() - self.t0)
         L = len(self.data_buffer)
-        #print(L)
+        print(L)
         
         if L > self.buffer_size:
             self.data_buffer = self.data_buffer[-self.buffer_size:]
@@ -192,9 +197,15 @@ class VidMag():
             
     def mainLoop(self):
         frame = self.webcam.get_frame()
+        #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert frame to grayscale
+
+        #cv2.imshow('self.webcam.get_frame', frame)
+
+        #print(frame)
         f1 = imutils.resize(frame, width = 256)
         #crop_frame = frame[100:228,200:328]
         self.data_buffer.append(f1)
+        
         self.run_motion()
         #print(frame)
         
@@ -207,6 +218,9 @@ class VidMag():
         cv2.imshow("Original",frame)
         #f2 = imutils.resize(cv2.convertScaleAbs(self.vidmag_frames[-1]), width = 640)
         f2 = imutils.resize(cv2.convertScaleAbs(self.frame_out), width = 640)
+        #cv2.imshow('f2', f2)
+
+        #print("frame_out",self.frame_out)
             
         cv2.imshow("Motion amplification",f2)
             

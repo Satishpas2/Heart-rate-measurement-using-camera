@@ -1,8 +1,10 @@
+## code for optical flow using Lukas-kanade method mediapipe, opencv,
+
 import numpy as np
 import cv2
 import mediapipe as mp
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
 
 # params for ShiTomasi corner detection
 feature_params = dict(maxCorners=100,
@@ -35,6 +37,10 @@ old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
 
 # Initialize Mediapipe Pose
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    # Initialize variables for plotting
+    plot_x = []
+    plot_y = []
+
     while (1):
         ret, frame = cap.read()
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -61,7 +67,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Calculate the step size for selecting equidistant landmarks
             step_size = min(w, h) // 5
 
-            # Select 10 equidistant landmarks inside the rectangle
+            # Select 25 equidistant landmarks inside the rectangle
             equidistant_landmarks = []
             for i in range(5):
                 for j in range(5):
@@ -72,8 +78,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Convert the equidistant landmarks to numpy array
             equidistant_landmarks = np.array(equidistant_landmarks, dtype=np.float32)
             p0 = equidistant_landmarks
-            print(type(p0))
-            print(type(equidistant_landmarks))
+            #print(type(p0))
+            #print(type(equidistant_landmarks))
             # calculate optical flow
             p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 
@@ -82,15 +88,30 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             good_old = p0[st[:, 0] == 1].reshape(-1, 1, 2)  # Fix the indexing error
 
+            # Create a separate image for displaying the changes in landmarks
+            landmark_changes = np.zeros_like(frame)
+
             # draw the tracks
             for i, (new, old) in enumerate(zip(good_new, good_old)):
                 a, b = new.ravel()
                 c, d = old.ravel()
                 mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
                 frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(), -1)
-            img = cv2.add(frame, mask)
+                
+                # Draw the changes in landmarks on the separate image
+                landmark_changes = cv2.line(landmark_changes, (int(c), int(d)), (int(a), int(b)), color[i].tolist(), 2)
+                landmark_changes = cv2.circle(landmark_changes, (int(a), int(b)), 5, color[i].tolist(), -1)
 
-            cv2.imshow('frame', img)
+                # Plot the changes in a single landmark
+                if i == 0:
+                    plot_x.append(len(plot_x))
+                    plot_y.append(int(b) - int(d))
+
+            # Combine the original frame and the changes in landmarks image
+            combined_frame = np.hstack((frame, landmark_changes))
+
+            # Display the combined frame
+            cv2.imshow('frame', combined_frame)
             k = cv2.waitKey(30) & 0xff
             if k == 27:
                 break
@@ -98,6 +119,22 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Now update the previous frame and previous points
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
+
+            # Plot the changes in landmark in real-time
+            plot_frame = np.zeros((300, 800, 3), dtype=np.uint8)
+            cv2.line(plot_frame, (0, 150), (800, 150), (255, 255, 255), 1)  # X-axis
+            cv2.line(plot_frame, (50, 0), (50, 300), (255, 255, 255), 1)  # Y-axis
+
+            # Plot the data points
+            for i in range(len(plot_x)):
+                cv2.circle(plot_frame, (50 + plot_x[i], 150 - plot_y[i]), 2, (0, 0, 255), -1)
+
+            # Display the plot
+            cv2.imshow('plot', plot_frame)
+
+        k = cv2.waitKey(30) & 0xff
+        if k == 27:
+            break
 
 cv2.destroyAllWindows()
 cap.release()

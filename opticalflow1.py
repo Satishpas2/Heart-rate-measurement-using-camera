@@ -1,6 +1,5 @@
 ## code for optical flow using Lukas-kanade method mediapipe, opencv,
 
-
 import numpy as np
 import cv2
 import mediapipe as mp
@@ -38,6 +37,11 @@ old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
 
 # Initialize Mediapipe Pose
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    # Initialize variables for plotting
+    plot_x = []
+    plot_y = []
+    initial_landmarks = None
+
     while (1):
         ret, frame = cap.read()
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -99,6 +103,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 landmark_changes = cv2.line(landmark_changes, (int(c), int(d)), (int(a), int(b)), color[i].tolist(), 2)
                 landmark_changes = cv2.circle(landmark_changes, (int(a), int(b)), 5, color[i].tolist(), -1)
 
+                # Plot the changes in a single landmark
+                if i == 0:
+                    plot_x.append(len(plot_x))
+                    plot_y.append(int(b) - int(d))
+
             # Combine the original frame and the changes in landmarks image
             combined_frame = np.hstack((frame, landmark_changes))
 
@@ -112,14 +121,31 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
 
-            cv2.imshow('frame', combined_frame)  # Fixed the variable name from 'img' to 'combined_frame'
-            k = cv2.waitKey(30) & 0xff
-            if k == 27:
-                break
+            # Calculate the averaged initial value of all landmarks in the first frame
+            if initial_landmarks is None:
+                initial_landmarks = np.mean(p0, axis=0)
 
-            # Now update the previous frame and previous points
-            old_gray = frame_gray.copy()
-            p0 = good_new.reshape(-1, 1, 2)
+            # Calculate the changes in averaged value of all 25 landmarks
+            averaged_landmarks = np.mean(p0, axis=0)
+            averaged_changes = averaged_landmarks - initial_landmarks
+
+            # Plot the changes in averaged value over time
+            plot_frame = np.zeros((600, 1600, 3), dtype=np.uint8)
+            cv2.line(plot_frame, (0, 300), (1600, 300), (255, 255, 255), 1)  # X-axis
+            cv2.line(plot_frame, (50, 0), (50, 600), (255, 255, 255), 1)  # Y-axis
+
+            # Plot the data points
+            for i in range(len(plot_x)):
+                cv2.circle(plot_frame, (50 + plot_x[i] * 10, 300 - int(averaged_changes[0][1] * 2)), 2, (0, 0, 255), -1)
+                print("averaged_changes",int(averaged_changes[0][1] * 2))
+                #print(initial_landmarks)
+
+            # Display the plot
+            cv2.imshow('plot', plot_frame)
+
+        k = cv2.waitKey(30) & 0xff
+        if k == 27:
+            break
 
 cv2.destroyAllWindows()
 cap.release()

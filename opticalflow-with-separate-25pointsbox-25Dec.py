@@ -1,3 +1,6 @@
+## code for optical flow using Lukas-kanade method mediapipe, opencv,
+
+
 import numpy as np
 import cv2
 import mediapipe as mp
@@ -61,7 +64,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Calculate the step size for selecting equidistant landmarks
             step_size = min(w, h) // 5
 
-            # Select 10 equidistant landmarks inside the rectangle
+            # Select 25 equidistant landmarks inside the rectangle
             equidistant_landmarks = []
             for i in range(5):
                 for j in range(5):
@@ -72,8 +75,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Convert the equidistant landmarks to numpy array
             equidistant_landmarks = np.array(equidistant_landmarks, dtype=np.float32)
             p0 = equidistant_landmarks
-            print(type(p0))
-            print(type(equidistant_landmarks))
+            #print(type(p0))
+            #print(type(equidistant_landmarks))
             # calculate optical flow
             p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 
@@ -82,15 +85,34 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             good_old = p0[st[:, 0] == 1].reshape(-1, 1, 2)  # Fix the indexing error
 
+            # Create a separate image for displaying the changes in landmarks
+            landmark_changes = np.zeros_like(frame)
+
             # draw the tracks
             for i, (new, old) in enumerate(zip(good_new, good_old)):
                 a, b = new.ravel()
                 c, d = old.ravel()
                 mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
                 frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(), -1)
-            img = cv2.add(frame, mask)
+                
+                # Draw the changes in landmarks on the separate image
+                landmark_changes = cv2.line(landmark_changes, (int(c), int(d)), (int(a), int(b)), color[i].tolist(), 2)
+                landmark_changes = cv2.circle(landmark_changes, (int(a), int(b)), 5, color[i].tolist(), -1)
 
-            cv2.imshow('frame', img)
+            # Combine the original frame and the changes in landmarks image
+            combined_frame = np.hstack((frame, landmark_changes))
+
+            # Display the combined frame
+            cv2.imshow('frame', combined_frame)
+            k = cv2.waitKey(30) & 0xff
+            if k == 27:
+                break
+
+            # Now update the previous frame and previous points
+            old_gray = frame_gray.copy()
+            p0 = good_new.reshape(-1, 1, 2)
+
+            cv2.imshow('frame', combined_frame)  # Fixed the variable name from 'img' to 'combined_frame'
             k = cv2.waitKey(30) & 0xff
             if k == 27:
                 break
